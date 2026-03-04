@@ -5,25 +5,9 @@ const client = new OpenAI({
   apiKey: process.env.GROQ_API_KEY
 })
 
-export async function parseEmailWithClaude(emailText, instructions, images = []) {
-  const hasImages = images.length > 0
-  const model = hasImages ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile'
-
-  let userContent
-  if (hasImages) {
-    userContent = [
-      { type: 'text', text: `Instructions: ${instructions}\n\nEmail:\n${emailText}` },
-      ...images.flatMap(img => [
-        { type: 'text', text: `\n[Image attachment: ${img.filename}]` },
-        { type: 'image_url', image_url: { url: `data:${img.mimeType};base64,${img.base64}` } }
-      ])
-    ]
-  } else {
-    userContent = `Instructions: ${instructions}\n\nEmail:\n${emailText}`
-  }
-
+export async function parseEmailWithClaude(emailText, instructions) {
   const response = await client.chat.completions.create({
-    model,
+    model: 'llama-3.3-70b-versatile',
     max_tokens: 2048,
     response_format: { type: 'json_object' },
     messages: [
@@ -33,7 +17,7 @@ export async function parseEmailWithClaude(emailText, instructions, images = [])
       },
       {
         role: 'user',
-        content: userContent
+        content: `Instructions: ${instructions}\n\nEmail:\n${emailText}`
       }
     ]
   })

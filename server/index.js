@@ -5,7 +5,7 @@ import multer from 'multer'
 import { simpleParser } from 'mailparser'
 import MsgReader from '@kenjiuno/msgreader'
 import { parseEmailWithClaude } from './emailParser.js'
-import { extractAttachmentText, extractImageAttachments } from './attachmentExtractor.js'
+import { extractAttachmentText } from './attachmentExtractor.js'
 
 const app = express()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -23,12 +23,9 @@ async function extractEmailContent(file) {
     const subject = parsed.subject || ''
     const date = parsed.date?.toISOString() || ''
     const body = parsed.text || parsed.html || ''
-    const attachments = parsed.attachments || []
-    const attachmentText = await extractAttachmentText(attachments)
-    const images = extractImageAttachments(attachments)
-    const text = `From: ${from}\nTo: ${to}\nSubject: ${subject}\nDate: ${date}\n\n${body}` +
+    const attachmentText = await extractAttachmentText(parsed.attachments || [])
+    return `From: ${from}\nTo: ${to}\nSubject: ${subject}\nDate: ${date}\n\n${body}` +
       (attachmentText ? `\n\n--- Attachments ---\n${attachmentText}` : '')
-    return { text, images }
   }
 
   if (ext.endsWith('.msg')) {
@@ -43,14 +40,12 @@ async function extractEmailContent(file) {
       content: Buffer.from(reader.getAttachment(att).content)
     }))
     const attachmentText = await extractAttachmentText(rawAttachments)
-    const images = extractImageAttachments(rawAttachments)
-    const text = `From: ${from}\nSubject: ${subject}\n\n${body}` +
+    return `From: ${from}\nSubject: ${subject}\n\n${body}` +
       (attachmentText ? `\n\n--- Attachments ---\n${attachmentText}` : '')
-    return { text, images }
   }
 
   // Plain text / unknown — decode as UTF-8
-  return { text: file.buffer.toString('utf-8'), images: [] }
+  return file.buffer.toString('utf-8')
 }
 
 // POST /api/parse — multipart (file) or JSON (plain text)
@@ -61,14 +56,11 @@ app.post('/api/parse', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Instructions are required.' })
     }
 
-    let emailText, images
+    let emailText
     if (req.file) {
-      const extracted = await extractEmailContent(req.file)
-      emailText = extracted.text
-      images = extracted.images
+      emailText = await extractEmailContent(req.file)
     } else if (req.body.text) {
       emailText = req.body.text
-      images = []
     } else {
       return res.status(400).json({ error: 'Provide either a file upload or raw email text.' })
     }
@@ -77,7 +69,7 @@ app.post('/api/parse', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Could not extract any text from the provided email.' })
     }
 
-    const result = await parseEmailWithClaude(emailText, instructions, images)
+    const result = await parseEmailWithClaude(emailText, instructions)
     res.json({ result })
   } catch (err) {
     console.error('Parse error:', err)

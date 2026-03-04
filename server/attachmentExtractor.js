@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import OpenAI from 'openai'
 
 const MAX_CHARS = 8000
 
@@ -14,6 +15,8 @@ const EXT_TO_MIME = {
   '.gif': 'image/gif',
   '.webp': 'image/webp'
 }
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 function getMimeType(attachment) {
   if (attachment.contentType && !attachment.contentType.startsWith('application/octet-stream')) {
@@ -56,14 +59,36 @@ async function extractSingleAttachment(attachment) {
     return truncate(buf.toString('utf-8'))
   }
 
+  if (mime.startsWith('image/')) {
+    const base64 = buf.toString('base64')
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: `data:${mime};base64,${base64}` }
+            },
+            {
+              type: 'text',
+              text: 'Extract all text visible in this image. Return only the extracted text, nothing else.'
+            }
+          ]
+        }
+      ]
+    })
+    return truncate(response.choices[0].message.content.trim())
+  }
+
   return null // skip unknown types
 }
 
 export async function extractAttachmentText(attachments) {
   const parts = []
   for (const att of attachments) {
-    const mime = getMimeType(att)
-    if (mime.startsWith('image/')) continue // handled separately
     try {
       const text = await extractSingleAttachment(att)
       if (text) {
@@ -74,14 +99,4 @@ export async function extractAttachmentText(attachments) {
     }
   }
   return parts.join('\n\n')
-}
-
-export function extractImageAttachments(attachments) {
-  return attachments
-    .filter(att => getMimeType(att).startsWith('image/'))
-    .map(att => ({
-      filename: att.filename || 'image',
-      base64: att.content.toString('base64'),
-      mimeType: getMimeType(att)
-    }))
 }
