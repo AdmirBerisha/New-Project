@@ -1,14 +1,17 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const client = new Anthropic()
+const client = new OpenAI()
 
 export async function parseEmailWithClaude(emailText, instructions) {
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
     max_tokens: 2048,
-    system:
-      'You are an expert email analyst. Extract exactly the information specified in the user\'s instructions from the provided email. Always respond with valid JSON only — no markdown, no explanation, just the JSON object.',
+    response_format: { type: 'json_object' },
     messages: [
+      {
+        role: 'system',
+        content: 'You are an expert email analyst. Extract exactly the information specified in the user\'s instructions from the provided email. Always respond with valid JSON only — no markdown, no explanation, just the JSON object.'
+      },
       {
         role: 'user',
         content: `Instructions: ${instructions}\n\nEmail:\n${emailText}`
@@ -16,10 +19,6 @@ export async function parseEmailWithClaude(emailText, instructions) {
     ]
   })
 
-  const raw = message.content[0].text.trim()
-
-  // Strip markdown code fences if Claude wraps the JSON
-  const jsonText = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-
-  return JSON.parse(jsonText)
+  const raw = response.choices[0].message.content.trim()
+  return JSON.parse(raw)
 }
