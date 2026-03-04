@@ -284,6 +284,8 @@ body {
   flex-direction: column;
 }
 
+.output-actions { display: flex; gap: 6px; }
+
 .copy-btn {
   background: var(--surface2);
   color: var(--text-muted);
@@ -296,6 +298,19 @@ body {
 }
 
 .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+.download-btn {
+  background: rgba(67, 217, 138, 0.12);
+  color: var(--success);
+  border: 1px solid var(--success);
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.download-btn:hover { background: rgba(67, 217, 138, 0.22); }
 
 .output-state {
   flex: 1;
