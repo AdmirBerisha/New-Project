@@ -1,13 +1,10 @@
 import OpenAI from 'openai'
 
-const client = new OpenAI({
-  baseURL: 'https://api.groq.com/openai/v1',
-  apiKey: process.env.GROQ_API_KEY
-})
+const client = new OpenAI()
 
 export async function parseEmailWithClaude(emailText, instructions) {
   const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'gpt-4o-mini',
     max_tokens: 2048,
     response_format: { type: 'json_object' },
     messages: [
